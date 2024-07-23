@@ -14,14 +14,21 @@ export const Footer: React.FC = () => {
   }
 
   const handleOnClearClick = () => {
-    const deletedTodos = todos.filter(t => t.completed);
+    const completedTodos = todos.filter(t => t.completed);
 
-    deletedTodos.map(todo => {
-      deleteTodo(todo.id)
-        .then(() => dispatch({ type: 'deleteTodo', payload: todo.id }))
-        .catch(() =>
-          dispatch({ type: 'showError', payload: 'Unable to delete a todo' }),
-        );
+    Promise.allSettled(
+      completedTodos.map(todo => deleteTodo(todo.id).then(() => todo.id)),
+    ).then(results => {
+      if (results.some(res => res.status === 'rejected')) {
+        dispatch({ type: 'showError', payload: 'Unable to delete a todo' });
+      }
+
+      return results
+        .filter(
+          (res): res is PromiseFulfilledResult<number> =>
+            res.status === 'fulfilled',
+        )
+        .map(res => dispatch({ type: 'deleteTodo', payload: res.value }));
     });
   };
 
